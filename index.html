@@ -38,6 +38,8 @@ MAINTENANCE BRIEF (standing instructions for updates — read by the assistant w
 10. TWO REGISTER TABS: 'Supply chain & sustainability laws' and 'Forced labour import bans' (every row whose lawTypes includes 'ban', plus the US
    trade-tariff row us-301). Each new ban row MUST be added to BAN_STAGE in the script (op = in operation, adopted = adopted/bill not yet
    operating, early = announced/committed); this drives the ban-map colours and the Stage filter. Rows in the other tab cross-link by jurKey.
+   The laws map colours markers by statusCat via LAW_STAGE (inforce/adopted = in effect or passed, parliament = bill stage, prelieg = pre-bill,
+   softlaw = voluntary); the marker shows the most advanced law in that jurisdiction.
 All tracker data lives in the DATA/EVENTS/FEED constants in the script block below.
 -->
 <style>
@@ -683,6 +685,10 @@ const BAN_STAGE = {
 const STAGE_OF = {}; Object.keys(BAN_STAGE).forEach(k=>BAN_STAGE[k].forEach(id=>STAGE_OF[id]=k));
 const STAGE_RANK = {op:0, adopted:1, early:2};
 const STAGE_COL = {op:'#7A1244', adopted:'#D98BB0', early:'#E8C547'};
+const LAW_STAGE = {inforce:'effect', adopted:'effect', parliament:'bill', prelieg:'pre', softlaw:'soft'};
+const LAW_RANK = {effect:0, bill:1, pre:2, soft:3};
+const LAW_COL = {effect:'#7A1244', bill:'#D98BB0', pre:'#E8C547', soft:'#A8A39A'};
+function lawStageOf(x){ return LAW_STAGE[x.statusCat] || 'pre'; }
 function inBans(x){ return (x.lawTypes||[]).includes('ban') || x.id==='us-301'; }
 function banStageOf(x){ return STAGE_OF[x.id] || 'early'; }
 function scopeOf(id){ const x=byId[id]; return x && inBans(x) ? 'bans' : 'laws'; }
@@ -991,8 +997,9 @@ function refreshMap(){
     el.style.display = items.length ? '' : 'none';
     el._items = items;
     if(!items.length) return;
-    const best = items.map(banStageOf).sort((a,b)=>STAGE_RANK[a]-STAGE_RANK[b])[0];
-    const col = state.scope==='bans' ? STAGE_COL[best] : PRC[items.some(x=>x.highPriority)?'H':'M'], r = 7+items.length*2.2;
+    const bestBan = items.map(banStageOf).sort((a,b)=>STAGE_RANK[a]-STAGE_RANK[b])[0];
+    const bestLaw = items.map(lawStageOf).sort((a,b)=>LAW_RANK[a]-LAW_RANK[b])[0];
+    const col = state.scope==='bans' ? STAGE_COL[bestBan] : LAW_COL[bestLaw], r = 7+items.length*2.2;
     el.querySelectorAll('circle').forEach(c=>c.setAttribute('r', r));
     el.querySelector('.halo').setAttribute('stroke', col);
     el.querySelector('.core').setAttribute('fill', col);
@@ -1005,7 +1012,7 @@ function refreshMap(){
   const lg = $('#maplegend');
   if(lg) lg.innerHTML = state.scope==='bans'
     ? `<span><i style="background:${STAGE_COL.op}"></i>In operation</span><span><i style="background:${STAGE_COL.adopted}"></i>Adopted or bill, not yet operating</span><span><i style="background:${STAGE_COL.early}"></i>Announced or committed</span>`
-    : `<span><i style="background:${PRC.H}"></i>Includes a high-priority law</span><span><i style="background:${PRC.M}"></i>Other laws</span>`;
+    : `<span><i style="background:${LAW_COL.effect}"></i>In effect or passed</span><span><i style="background:${LAW_COL.bill}"></i>Bill stage</span><span><i style="background:${LAW_COL.pre}"></i>Pre-bill (announced, draft or consultation)</span><span><i style="background:${LAW_COL.soft}"></i>Voluntary or guidance</span>`;
 }
 mapReady = true;
 
